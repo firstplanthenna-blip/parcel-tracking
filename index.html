@@ -440,67 +440,35 @@ function resetScannerButtons() {
 function compressImage(file, callback) {
 
   const img = new Image();
-
   const reader = new FileReader();
-
 
   reader.onload = function(event) {
 
     img.onload = function() {
 
+      const MAX_SIZE = 1000;
 
-      // Maximum dimensions
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
 
-      const MAX_WIDTH = 1280;
+      // Resize image
+      if (width > MAX_SIZE || height > MAX_SIZE) {
 
-      const MAX_HEIGHT = 1280;
+        const ratio = Math.min(
+          MAX_SIZE / width,
+          MAX_SIZE / height
+        );
 
-
-      let width = img.width;
-
-      let height = img.height;
-
-
-      // Resize while keeping aspect ratio
-
-      if (
-        width > MAX_WIDTH ||
-        height > MAX_HEIGHT
-      ) {
-
-        const ratio =
-          Math.min(
-            MAX_WIDTH / width,
-            MAX_HEIGHT / height
-          );
-
-
-        width =
-          Math.round(width * ratio);
-
-
-        height =
-          Math.round(height * ratio);
-
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
       }
 
-
-      // Create canvas
-
-      const canvas =
-        document.createElement("canvas");
-
+      const canvas = document.createElement("canvas");
 
       canvas.width = width;
-
       canvas.height = height;
 
-
-      const ctx =
-        canvas.getContext("2d");
-
-
-      // Draw resized image
+      const ctx = canvas.getContext("2d");
 
       ctx.drawImage(
         img,
@@ -510,36 +478,75 @@ function compressImage(file, callback) {
         height
       );
 
+      // Strong JPEG compression
+      let quality = 0.50;
 
-      // Compress JPEG
-
-      const compressedData =
+      let compressedData =
         canvas.toDataURL(
           "image/jpeg",
-          0.70
+          quality
         );
 
+      // Keep reducing quality if still large
+      let attempts = 0;
 
-      // Remove base64 prefix
+      while (
+        compressedData.length > 350000 &&
+        attempts < 5
+      ) {
+
+        quality -= 0.08;
+
+        compressedData =
+          canvas.toDataURL(
+            "image/jpeg",
+            quality
+          );
+
+        attempts++;
+      }
 
       const base64 =
         compressedData.split(",")[1];
 
+      // Calculate compressed size
+      const compressedKB =
+        Math.round(
+          (base64.length * 3) / 4 / 1024
+        );
+
+      console.log(
+        "Original:",
+        Math.round(file.size / 1024),
+        "KB"
+      );
+
+      console.log(
+        "Compressed:",
+        compressedKB,
+        "KB"
+      );
+
+      console.log(
+        "Dimensions:",
+        width,
+        "x",
+        height
+      );
+
+      console.log(
+        "Quality:",
+        quality
+      );
 
       callback(base64);
-
     };
 
-
     img.src = event.target.result;
-
   };
 
-
   reader.readAsDataURL(file);
-
 }
-
 
 // ==========================================
 // SUBMIT PARCEL
