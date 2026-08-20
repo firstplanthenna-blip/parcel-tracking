@@ -103,8 +103,10 @@
       display: none;
     }
 
-    .section {
-      margin-top: 20px;
+    .photo-info {
+      font-size: 13px;
+      color: #666;
+      margin-top: 5px;
     }
 
   </style>
@@ -116,6 +118,7 @@
 
   <h2>📦 Parcel Tracking</h2>
 
+
   <!-- AWB -->
 
   <label>AWB Number</label>
@@ -125,6 +128,7 @@
     id="awb"
     placeholder="Scan AWB or enter manually"
     autocomplete="off">
+
 
   <button
     type="button"
@@ -136,6 +140,7 @@
 
   </button>
 
+
   <button
     type="button"
     class="stop-button"
@@ -145,6 +150,7 @@
     ✖ STOP SCANNER
 
   </button>
+
 
   <div id="reader"></div>
 
@@ -177,6 +183,10 @@
     id="photo"
     accept="image/*"
     capture="environment">
+
+  <div class="photo-info">
+    📸 Photo will automatically be compressed before upload
+  </div>
 
 
   <!-- Condition -->
@@ -231,6 +241,7 @@
 
   </button>
 
+
   <div id="status"></div>
 
 </div>
@@ -238,11 +249,13 @@
 
 <script>
 
+
 const SCRIPT_URL =
 "https://script.google.com/macros/s/AKfycbxdGTbxZRVFN-mEoqEhrWDrRjLEnX9kNoI0_Nzg__Hp1xFlU4buyOWwDsJUymIS5xPMnQ/exec";
 
 
 let scanner = null;
+
 let scannerRunning = false;
 
 
@@ -255,12 +268,14 @@ function startScanner() {
   const status =
     document.getElementById("scanStatus");
 
+
   status.innerText =
     "📷 Starting camera...";
 
 
   document.getElementById("scanButton")
     .style.display = "none";
+
 
   document.getElementById("stopButton")
     .style.display = "block";
@@ -312,6 +327,7 @@ function startScanner() {
 
     function(decodedText) {
 
+
       // AWB detected
 
       document.getElementById("awb")
@@ -326,28 +342,32 @@ function startScanner() {
 
     },
 
+
     function(errorMessage) {
 
-      // Scanner continuously checks.
-      // Ignore unsuccessful attempts.
+      // Ignore unsuccessful scan attempts
 
     }
 
   )
 
+
   .then(function() {
 
     scannerRunning = true;
+
 
     status.innerText =
       "📷 Camera active — barcode ko box ke andar rakhein";
 
   })
 
+
   .catch(function(error) {
 
     status.innerText =
       "❌ Camera error: " + error;
+
 
     resetScannerButtons();
 
@@ -385,6 +405,7 @@ function stopScanner() {
 
     })
 
+
     .catch(function(error) {
 
       console.log(error);
@@ -405,8 +426,117 @@ function resetScannerButtons() {
   document.getElementById("scanButton")
     .style.display = "block";
 
+
   document.getElementById("stopButton")
     .style.display = "none";
+
+}
+
+
+// ==========================================
+// COMPRESS PHOTO
+// ==========================================
+
+function compressImage(file, callback) {
+
+  const img = new Image();
+
+  const reader = new FileReader();
+
+
+  reader.onload = function(event) {
+
+    img.onload = function() {
+
+
+      // Maximum dimensions
+
+      const MAX_WIDTH = 1280;
+
+      const MAX_HEIGHT = 1280;
+
+
+      let width = img.width;
+
+      let height = img.height;
+
+
+      // Resize while keeping aspect ratio
+
+      if (
+        width > MAX_WIDTH ||
+        height > MAX_HEIGHT
+      ) {
+
+        const ratio =
+          Math.min(
+            MAX_WIDTH / width,
+            MAX_HEIGHT / height
+          );
+
+
+        width =
+          Math.round(width * ratio);
+
+
+        height =
+          Math.round(height * ratio);
+
+      }
+
+
+      // Create canvas
+
+      const canvas =
+        document.createElement("canvas");
+
+
+      canvas.width = width;
+
+      canvas.height = height;
+
+
+      const ctx =
+        canvas.getContext("2d");
+
+
+      // Draw resized image
+
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        width,
+        height
+      );
+
+
+      // Compress JPEG
+
+      const compressedData =
+        canvas.toDataURL(
+          "image/jpeg",
+          0.70
+        );
+
+
+      // Remove base64 prefix
+
+      const base64 =
+        compressedData.split(",")[1];
+
+
+      callback(base64);
+
+    };
+
+
+    img.src = event.target.result;
+
+  };
+
+
+  reader.readAsDataURL(file);
 
 }
 
@@ -416,6 +546,7 @@ function resetScannerButtons() {
 // ==========================================
 
 function submitParcel() {
+
 
   const awb =
     document.getElementById("awb")
@@ -447,7 +578,9 @@ function submitParcel() {
       .files[0];
 
 
-  // Validation
+  // ======================================
+  // VALIDATION
+  // ======================================
 
   if (!awb) {
 
@@ -482,105 +615,138 @@ function submitParcel() {
 
   button.disabled = true;
 
+
   button.innerText =
-    "SAVING...";
+    "COMPRESSING PHOTO...";
 
 
   document.getElementById("status")
     .innerText =
-    "Uploading parcel information...";
+    "📸 Compressing photo...";
 
 
-  const reader =
-    new FileReader();
+  // ======================================
+  // COMPRESS PHOTO
+  // ======================================
 
+  compressImage(
+    photo,
+    function(base64) {
 
-  reader.onload = function(event) {
-
-    const base64 =
-      event.target.result.split(",")[1];
-
-
-    const data = {
-
-      awb: awb,
-
-      scanType: scanType,
-
-      condition: condition,
-
-      user: user,
-
-      remarks: remarks,
-
-      photo: base64
-
-    };
-
-
-    fetch(SCRIPT_URL, {
-
-      method: "POST",
-
-      mode: "no-cors",
-
-      headers: {
-
-        "Content-Type":
-          "text/plain;charset=utf-8"
-
-      },
-
-      body: JSON.stringify(data)
-
-    })
-
-    .then(function() {
-
-      document.getElementById("status")
-        .innerHTML =
-        '<span class="success">✅ Parcel submitted successfully</span>';
-
-
-      // Clear form
-
-      document.getElementById("awb")
-        .value = "";
-
-      document.getElementById("photo")
-        .value = "";
-
-      document.getElementById("remarks")
-        .value = "";
-
-
-      button.disabled = false;
 
       button.innerText =
-        "SUBMIT PARCEL";
+        "UPLOADING...";
 
-    })
-
-    .catch(function(error) {
 
       document.getElementById("status")
-        .innerHTML =
-        '<span class="error">❌ Error: ' +
-        error +
-        '</span>';
+        .innerText =
+        "⬆️ Uploading parcel information...";
 
 
-      button.disabled = false;
+      const data = {
 
-      button.innerText =
-        "SUBMIT PARCEL";
+        awb: awb,
 
-    });
+        scanType: scanType,
 
-  };
+        condition: condition,
+
+        user: user,
+
+        remarks: remarks,
+
+        photo: base64
+
+      };
 
 
-  reader.readAsDataURL(photo);
+      // ==================================
+      // SEND TO GOOGLE APPS SCRIPT
+      // ==================================
+
+      fetch(
+
+        SCRIPT_URL,
+
+        {
+
+          method: "POST",
+
+          mode: "no-cors",
+
+          headers: {
+
+            "Content-Type":
+              "text/plain;charset=utf-8"
+
+          },
+
+          body:
+            JSON.stringify(data)
+
+        }
+
+      )
+
+
+      .then(function() {
+
+
+        document.getElementById("status")
+          .innerHTML =
+          '<span class="success">' +
+          '✅ Parcel submitted successfully' +
+          '</span>';
+
+
+        // =================================
+        // RESET FORM
+        // =================================
+
+        document.getElementById("awb")
+          .value = "";
+
+
+        document.getElementById("photo")
+          .value = "";
+
+
+        document.getElementById("remarks")
+          .value = "";
+
+
+        button.disabled = false;
+
+
+        button.innerText =
+          "SUBMIT PARCEL";
+
+
+      })
+
+
+      .catch(function(error) {
+
+
+        document.getElementById("status")
+          .innerHTML =
+          '<span class="error">' +
+          '❌ Error: ' +
+          error +
+          '</span>';
+
+
+        button.disabled = false;
+
+
+        button.innerText =
+          "SUBMIT PARCEL";
+
+      });
+
+    }
+
+  );
 
 }
 
