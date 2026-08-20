@@ -1,1 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
 
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>Parcel Tracking</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 5px;
+    }
+
+    label {
+      display: block;
+      margin-top: 18px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      width: 100%;
+      padding: 13px;
+      margin-top: 7px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #999;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 15px;
+    }
+
+    #scanStatus {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    #status {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    .success {
+      color: green;
+    }
+
+    .error {
+      color: red;
+    }
+
+    .scan-button {
+      background: #1677ff;
+      font-size: 17px;
+      padding: 15px;
+    }
+
+    .stop-button {
+      background: #777;
+      display: none;
+    }
+
+    .section {
+      margin-top: 20px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>📦 Parcel Tracking</h2>
+
+  <!-- AWB -->
+
+  <label>AWB Number</label>
+
+  <input
+    type="text"
+    id="awb"
+    placeholder="Scan AWB or enter manually"
+    autocomplete="off">
+
+  <button
+    type="button"
+    class="scan-button"
+    id="scanButton"
+    onclick="startScanner()">
+
+    📷 SCAN AWB BARCODE
+
+  </button>
+
+  <button
+    type="button"
+    class="stop-button"
+    id="stopButton"
+    onclick="stopScanner()">
+
+    ✖ STOP SCANNER
+
+  </button>
+
+  <div id="reader"></div>
+
+  <div id="scanStatus"></div>
+
+
+  <!-- Scan Type -->
+
+  <label>Scan Type</label>
+
+  <select id="scanType">
+
+    <option value="Going / Dispatch">
+      Going / Dispatch
+    </option>
+
+    <option value="Return / Coming Back">
+      Return / Coming Back
+    </option>
+
+  </select>
+
+
+  <!-- Photo -->
+
+  <label>Parcel Photo</label>
+
+  <input
+    type="file"
+    id="photo"
+    accept="image/*"
+    capture="environment">
+
+
+  <!-- Condition -->
+
+  <label>Parcel Condition</label>
+
+  <select id="condition">
+
+    <option value="Good / Sealed">
+      Good / Sealed
+    </option>
+
+    <option value="Damaged">
+      Damaged
+    </option>
+
+    <option value="Open / Tampered">
+      Open / Tampered
+    </option>
+
+  </select>
+
+
+  <!-- Staff -->
+
+  <label>Staff Name</label>
+
+  <input
+    type="text"
+    id="user"
+    placeholder="Enter staff name">
+
+
+  <!-- Remarks -->
+
+  <label>Remarks</label>
+
+  <textarea
+    id="remarks"
+    rows="3"
+    placeholder="Optional"></textarea>
+
+
+  <!-- Submit -->
+
+  <button
+    type="button"
+    id="submitBtn"
+    onclick="submitParcel()">
+
+    SUBMIT PARCEL
+
+  </button>
+
+  <div id="status"></div>
+
+</div>
+
+
+<script>
+
+const SCRIPT_URL =
+"https://script.google.com/macros/s/AKfycbxdGTbxZRVFN-mEoqEhrWDrRjLEnX9kNoI0_Nzg__Hp1xFlU4buyOWwDsJUymIS5xPMnQ/exec";
+
+
+let scanner = null;
+let scannerRunning = false;
+
+
+// ==========================================
+// START BARCODE SCANNER
+// ==========================================
+
+function startScanner() {
+
+  const status =
+    document.getElementById("scanStatus");
+
+  status.innerText =
+    "📷 Starting camera...";
+
+
+  document.getElementById("scanButton")
+    .style.display = "none";
+
+  document.getElementById("stopButton")
+    .style.display = "block";
+
+
+  scanner =
+    new Html5Qrcode("reader");
+
+
+  const config = {
+
+    fps: 10,
+
+    qrbox: {
+      width: 280,
+      height: 160
+    },
+
+    formatsToSupport: [
+
+      Html5QrcodeSupportedFormats.CODE_128,
+
+      Html5QrcodeSupportedFormats.CODE_39,
+
+      Html5QrcodeSupportedFormats.CODE_93,
+
+      Html5QrcodeSupportedFormats.EAN_13,
+
+      Html5QrcodeSupportedFormats.EAN_8,
+
+      Html5QrcodeSupportedFormats.UPC_A,
+
+      Html5QrcodeSupportedFormats.UPC_E,
+
+      Html5QrcodeSupportedFormats.QR_CODE
+
+    ]
+
+  };
+
+
+  scanner.start(
+
+    {
+      facingMode: "environment"
+    },
+
+    config,
+
+    function(decodedText) {
+
+      // AWB detected
+
+      document.getElementById("awb")
+        .value = decodedText;
+
+
+      status.innerText =
+        "✅ AWB scanned: " + decodedText;
+
+
+      stopScanner();
+
+    },
+
+    function(errorMessage) {
+
+      // Scanner continuously checks.
+      // Ignore unsuccessful attempts.
+
+    }
+
+  )
+
+  .then(function() {
+
+    scannerRunning = true;
+
+    status.innerText =
+      "📷 Camera active — barcode ko box ke andar rakhein";
+
+  })
+
+  .catch(function(error) {
+
+    status.innerText =
+      "❌ Camera error: " + error;
+
+    resetScannerButtons();
+
+  });
+
+}
+
+
+// ==========================================
+// STOP SCANNER
+// ==========================================
+
+function stopScanner() {
+
+  if (!scanner || !scannerRunning) {
+
+    resetScannerButtons();
+
+    return;
+
+  }
+
+
+  scanner.stop()
+
+    .then(function() {
+
+      scanner.clear();
+
+      scanner = null;
+
+      scannerRunning = false;
+
+      resetScannerButtons();
+
+    })
+
+    .catch(function(error) {
+
+      console.log(error);
+
+      resetScannerButtons();
+
+    });
+
+}
+
+
+// ==========================================
+// RESET SCANNER BUTTONS
+// ==========================================
+
+function resetScannerButtons() {
+
+  document.getElementById("scanButton")
+    .style.display = "block";
+
+  document.getElementById("stopButton")
+    .style.display = "none";
+
+}
+
+
+// ==========================================
+// SUBMIT PARCEL
+// ==========================================
+
+function submitParcel() {
+
+  const awb =
+    document.getElementById("awb")
+      .value.trim();
+
+
+  const scanType =
+    document.getElementById("scanType")
+      .value;
+
+
+  const condition =
+    document.getElementById("condition")
+      .value;
+
+
+  const user =
+    document.getElementById("user")
+      .value.trim();
+
+
+  const remarks =
+    document.getElementById("remarks")
+      .value.trim();
+
+
+  const photo =
+    document.getElementById("photo")
+      .files[0];
+
+
+  // Validation
+
+  if (!awb) {
+
+    alert("Please scan AWB.");
+
+    return;
+
+  }
+
+
+  if (!photo) {
+
+    alert("Please take parcel photo.");
+
+    return;
+
+  }
+
+
+  if (!user) {
+
+    alert("Please enter staff name.");
+
+    return;
+
+  }
+
+
+  const button =
+    document.getElementById("submitBtn");
+
+
+  button.disabled = true;
+
+  button.innerText =
+    "SAVING...";
+
+
+  document.getElementById("status")
+    .innerText =
+    "Uploading parcel information...";
+
+
+  const reader =
+    new FileReader();
+
+
+  reader.onload = function(event) {
+
+    const base64 =
+      event.target.result.split(",")[1];
+
+
+    const data = {
+
+      awb: awb,
+
+      scanType: scanType,
+
+      condition: condition,
+
+      user: user,
+
+      remarks: remarks,
+
+      photo: base64
+
+    };
+
+
+    fetch(SCRIPT_URL, {
+
+      method: "POST",
+
+      mode: "no-cors",
+
+      headers: {
+
+        "Content-Type":
+          "text/plain;charset=utf-8"
+
+      },
+
+      body: JSON.stringify(data)
+
+    })
+
+    .then(function() {
+
+      document.getElementById("status")
+        .innerHTML =
+        '<span class="success">✅ Parcel submitted successfully</span>';
+
+
+      // Clear form
+
+      document.getElementById("awb")
+        .value = "";
+
+      document.getElementById("photo")
+        .value = "";
+
+      document.getElementById("remarks")
+        .value = "";
+
+
+      button.disabled = false;
+
+      button.innerText =
+        "SUBMIT PARCEL";
+
+    })
+
+    .catch(function(error) {
+
+      document.getElementById("status")
+        .innerHTML =
+        '<span class="error">❌ Error: ' +
+        error +
+        '</span>';
+
+
+      button.disabled = false;
+
+      button.innerText =
+        "SUBMIT PARCEL";
+
+    });
+
+  };
+
+
+  reader.readAsDataURL(photo);
+
+}
+
+</script>
+
+</body>
+</html>
