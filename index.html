@@ -446,12 +446,12 @@ function compressImage(file, callback) {
 
     img.onload = function() {
 
+      // Fast resize
       const MAX_SIZE = 1000;
 
       let width = img.naturalWidth;
       let height = img.naturalHeight;
 
-      // Resize image
       if (width > MAX_SIZE || height > MAX_SIZE) {
 
         const ratio = Math.min(
@@ -478,38 +478,16 @@ function compressImage(file, callback) {
         height
       );
 
-      // Strong JPEG compression
-      let quality = 0.50;
-
-      let compressedData =
+      // ONE compression only
+      const compressedData =
         canvas.toDataURL(
           "image/jpeg",
-          quality
+          0.55
         );
-
-      // Keep reducing quality if still large
-      let attempts = 0;
-
-      while (
-        compressedData.length > 350000 &&
-        attempts < 5
-      ) {
-
-        quality -= 0.08;
-
-        compressedData =
-          canvas.toDataURL(
-            "image/jpeg",
-            quality
-          );
-
-        attempts++;
-      }
 
       const base64 =
         compressedData.split(",")[1];
 
-      // Calculate compressed size
       const compressedKB =
         Math.round(
           (base64.length * 3) / 4 / 1024
@@ -527,18 +505,6 @@ function compressImage(file, callback) {
         "KB"
       );
 
-      console.log(
-        "Dimensions:",
-        width,
-        "x",
-        height
-      );
-
-      console.log(
-        "Quality:",
-        quality
-      );
-
       callback(base64);
     };
 
@@ -547,7 +513,6 @@ function compressImage(file, callback) {
 
   reader.readAsDataURL(file);
 }
-
 // ==========================================
 // SUBMIT PARCEL
 // ==========================================
